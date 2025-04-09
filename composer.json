@@ -1,0 +1,18 @@
+{
+    "name": "laravelindonesia/migrationrollbackvisualizer",
+    "description": "Visualizes what will happen when you run a Laravel migration rollback.",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Laravelindonesia\\Migrationrollbackvisualizer\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Rhamad Nursani Sidik"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {}
+}
