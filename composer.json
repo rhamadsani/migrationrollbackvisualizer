@@ -1,5 +1,5 @@
 {
-    "name": "laravelindonesia/migrationrollbackvisualizer",
+    "name": "rhamadsani/migrationrollbackvisualizer",
     "description": "Visualizes what will happen when you run a Laravel migration rollback.",
     "type": "library",
     "license": "MIT",
@@ -13,7 +13,7 @@
             "name": "Rhamad Nursani Sidik"
         }
     ],
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
     "prefer-stable": true,
     "require": {}
 }
