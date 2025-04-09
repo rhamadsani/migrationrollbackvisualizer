@@ -5,7 +5,7 @@ namespace LaravelIndonesia\MigrationRollbackVisualizer\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
-class VisualizeRollback extends Command
+class VisualizeRollbackCommand extends Command
 {
     protected $signature = 'visualize:rollback';
     protected $description = 'Visualize what would happen during a Laravel migration rollback';
