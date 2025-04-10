@@ -24,3 +24,9 @@
 
 ```bash
 composer require rhamadsani/migrationrollbackvisualizer
+```
+## 📘 Documentation
+👉 https://dbanalyzer.laravelindonesia.com
+
+View full docs, UI examples, command breakdowns, and live preview.
+
