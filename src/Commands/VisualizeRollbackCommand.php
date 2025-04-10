@@ -1,6 +1,6 @@
 <?php
 
-namespace LaravelIndonesia\MigrationRollbackVisualizer\Commands;
+namespace LaravelIndonesia\Migrationrollbackvisualizer\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
