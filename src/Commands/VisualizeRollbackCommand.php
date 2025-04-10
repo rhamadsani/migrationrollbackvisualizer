@@ -5,11 +5,17 @@ namespace LaravelIndonesia\Migrationrollbackvisualizer\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Laravelindonesia\Migrationrollbackvisualizer\Services\MigrationActionExtractor;
 
 class VisualizeRollbackCommand extends Command
 {
     protected $signature = 'visualize:rollback {--mode=} {--format=}';
     protected $description = 'Visualize what would happen during a Laravel migration rollback';
+
+    public function __construct(protected MigrationActionExtractor $extractor)
+    {
+        parent::__construct();
+    }
 
     public function handle()
     {
@@ -34,7 +40,7 @@ class VisualizeRollbackCommand extends Command
                 $json[] = [
                     'migration' => $migration->migration,
                     'batch' => $migration->batch,
-                    'actions' => $this->extractActions($migration->migration),
+                    'actions' => $this->extractor->extract($migration->migration),
                 ];
             }
 
@@ -81,8 +87,16 @@ class VisualizeRollbackCommand extends Command
                 $prefix = $i === count($items) - 1 ? ' └──' : ' ├──';
                 $this->line("<fg=green>{$prefix}</> <options=bold>{$migration->migration}</>");
 
-                foreach ($this->extractActions($migration->migration) as $action) {
-                    $this->line("     <fg=yellow>↳</> {$action}");
+                $actions = $this->extractor->extract($migration->migration);
+                foreach ($actions as $action) {
+                    // Indent and color based on type
+                    if (str_starts_with($action, 'create_table')) {
+                        $this->line("  <fg=green>↳</> <fg=green>{$action}</>");
+                    } elseif (str_starts_with($action, '  ↳ add column')) {
+                        $this->line("     <fg=gray>{$action}</>");
+                    } else {
+                        $this->line("     <fg=yellow>{$action}</>");
+                    }
                 }
             }
 
@@ -103,100 +117,20 @@ class VisualizeRollbackCommand extends Command
         foreach ($latestMigrations as $migration) {
             $this->line(" ├── <options=bold>{$migration->migration}</>");
 
-            foreach ($this->extractActions($migration->migration) as $action) {
-                $this->line("     <fg=yellow>↳</> {$action}");
+            $actions = $this->extractor->extract($migration->migration);
+            foreach ($actions as $action) {
+                // Indent and color based on type
+                if (str_starts_with($action, 'create_table')) {
+                    $this->line("  <fg=green>↳</> <fg=green>{$action}</>");
+                } elseif (str_starts_with($action, '  ↳ add column')) {
+                    $this->line("     <fg=gray>{$action}</>");
+                } else {
+                    $this->line("     <fg=yellow>{$action}</>");
+                }
+            }
+            if (count($actions) == 0) {
+                $this->error("   no schema found!!!");
             }
         }
-    }
-
-    public function extractActions(string $migrationName): array
-    {
-        $path = database_path("migrations/{$migrationName}.php");
-
-        if (!file_exists($path)) {
-            return ['<error>File not found</error>'];
-        }
-
-        $code = file_get_contents($path);
-
-        // Cek hasil match untuk down()
-        preg_match('/function\s+down\s*\(\)\s*(?::\s*\w+)?\s*\{([\s\S]*?)\}/', $code, $downMatch);
-        $downCode = $downMatch[1] ?? '';
-
-        // $this->line("<fg=gray>DEBUG DOWN CODE:</>\n" . $downCode);
-
-        return $this->parseSchemaActions($downCode);
-    }
-
-
-    private function parseSchemaActions(string $code): array
-    {
-        $actions = [];
-
-        // Drop table
-        preg_match_all("/Schema::dropIfExists\(['\"](.*?)['\"]\)/", $code, $matches);
-        foreach ($matches[1] as $table) {
-            $actions[] = "drop_table_if_exists: {$table}";
-        }
-
-        preg_match_all("/Schema::drop\(['\"](.*?)['\"]\)/", $code, $matches);
-        foreach ($matches[1] as $table) {
-            $actions[] = "drop_table: {$table}";
-        }
-
-        // Schema::table with multiline closure
-        preg_match_all("/Schema::table\(['\"](.*?)['\"],\s*function\s*\(.*?\)\s*\{([\s\S]*?)\}\);/", $code, $matches, PREG_SET_ORDER);
-
-        var_dump($matches, $code);
-        foreach ($matches as $match) {
-            $table = $match[1];
-            $tableBody = $match[2];
-
-            $actions[] = "modify_table: {$table}";
-
-            foreach ($this->parseTableModifications($tableBody) as $columnAction) {
-                $actions[] = "  ↳ $columnAction";
-            }
-        }
-
-        return $actions;
-    }
-
-
-    private function parseTableModifications(string $code): array
-    {
-        $actions = [];
-
-        // Drop column
-        preg_match_all("/->dropColumn\(['\"](.*?)['\"]\)/", $code, $drops, PREG_SET_ORDER);
-        foreach ($drops as $drop) {
-            $actions[] = "drop_column: {$drop[1]}";
-        }
-
-        // Rename column
-        preg_match_all("/->renameColumn\(['\"](.*?)['\"],\s*['\"](.*?)['\"]\)/", $code, $renames, PREG_SET_ORDER);
-        foreach ($renames as $rename) {
-            $actions[] = "rename_column: {$rename[1]} → {$rename[2]}";
-        }
-
-        // Modify column (change)
-        preg_match_all("/->(string|text|integer|boolean|timestamp|date|json)\(['\"](.*?)['\"]\).*?->change\(\)/", $code, $changes, PREG_SET_ORDER);
-        foreach ($changes as $change) {
-            $actions[] = "modify_column: {$change[2]} ({$change[1]})";
-        }
-
-        // Drop foreign key
-        preg_match_all("/->dropForeign\(['\"](.*?)['\"]\)/", $code, $fks, PREG_SET_ORDER);
-        foreach ($fks as $fk) {
-            $actions[] = "drop_foreign: {$fk[1]}";
-        }
-
-        // Drop index
-        preg_match_all("/->dropIndex\(['\"](.*?)['\"]\)/", $code, $indexes, PREG_SET_ORDER);
-        foreach ($indexes as $index) {
-            $actions[] = "drop_index: {$index[1]}";
-        }
-
-        return $actions;
     }
 }
